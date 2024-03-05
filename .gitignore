@@ -3,7 +3,8 @@
 !include
 !include/**
 !src
-!tmp
+!temp
+!temp/**
 !src/**
 !www
 !www/**
