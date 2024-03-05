@@ -6,11 +6,9 @@
 enum ParseState {
 	stateGetHeaderData,
 	stateParseRequestLine,
-	stateParseHeaders,
 	stateCheckBody,
 	stateParseMessageBody,
 	stateParseChunkHeader,
-	stateSkipCRLF,
 	requestParseFAIL, //internal error
 	requestERROR,
 	requestOK
@@ -20,6 +18,7 @@ enum RequestLineState {
 	stateParseMethod,
 	stateParseUri,
 	stateParseHTTPver,
+	stateParseHeaders,
 	requestLineOK
 };
 
@@ -55,14 +54,11 @@ private:
 	void		parseRequestLine();
 	void		parseMethod(std::istringstream& requestLine);
 	void		parseHTTPver(std::istringstream& requestLine);
-
 	void		parseHeader();
+
 	const char *checkForBody(const char *bodyStart, const char *msgEnd, int& MessageLen);
 	const char *storeBody(const char *bodyStart, int& MessageLen);
-	// const char *decodeChunked(const char *chunkStart, const char *msgEnd);
-	const char *decodeChunked(const char *start, int& messageLen);
 	const char *getChunkSize(const char *start, int& messageLen);
-	const char *getChunkStart(const char *start, const char *msgEnd);
 	const char *skipCRLF(const char *start, int& messageLen);
 	
 	void 		setError(ParseState type, int errorCode, const char *message);

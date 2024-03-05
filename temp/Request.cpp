@@ -124,17 +124,18 @@ void	Request::parseRequestLine() {
 			case stateParseUri: parseURI(requestLineStream);
 				break;
 			case stateParseHTTPver: parseHTTPver(requestLineStream);
+				if (rlstate_ == stateParseHeaders && headersStream_.eof() && (method_ == GET || method_ == DELETE)) {
+					rlstate_ = requestLineOK;
+					state_ = requestOK;
+				}
+				break;
+			case stateParseHeaders: parseHeader();
 				break;
 			case requestLineOK:
 				break;
 		}
 	}
-	if (rlstate_ == requestLineOK) {
-		if (headersStream_.eof() && (method_ == GET || method_ == DELETE))
-			state_ = requestOK;
-		else
-			state_ = stateParseHeaders;
-	}
+	
 	return ;
 }
 
@@ -210,7 +211,7 @@ void	Request::parseHTTPver(std::istringstream& requestLine) {
 		return setError(requestERROR, 400, "Bad Request Version");
 	if (major != 1 || minor != 1)
 		return setError(requestERROR, 505, "Unsupported HTTP version");
-	rlstate_ = requestLineOK;
+	rlstate_ = stateParseHeaders;
 	return ;
 }
 
@@ -237,8 +238,10 @@ void Request::parseHeader() {
 		headers_.insert(std::make_pair(key, value));
 	else
 		found->second.append(", " + value);
-	if (headersStream_.eof())
+	if (headersStream_.eof()) {
 		state_ = stateCheckBody;
+		rlstate_ = requestLineOK;
+	}
 	return ;
 }
 
@@ -253,7 +256,7 @@ const char	*Request::checkForBody(const char *start, const char *msgEnd, int &me
 		return msgEnd;
 	}
 	if (isTransferEncodingChunked())
-		state_ = stateParseChunkedBody;
+		state_ = stateParseChunkHeader;
 	else {
 		std::string bodyLenStr = getHeaderValueForKey("content-length");
 		if (bodyLenStr.empty()) {
@@ -278,24 +281,28 @@ const char *Request::storeBody(const char *bodyStart, int& messageLen) {
 	}
 	if (contentLen_ == 0 && !isTransferEncodingChunked())
 		state_ = requestOK;
-	else if (contentLen_ == 0)
-		state_ = stateSkipCRLF;
+	else if (contentLen_ == 0) {
+		while (skip_ > 0 && messageLen > 0) {
+			if ((skip_ == 2 && *bodyStart != '\r') || (skip_ == 1 && *bodyStart != '\n'))
+				setError(requestERROR, 400, "Requiest syntac error (CRLF)");
+			bodyStart++;
+			skip_--;
+			messageLen--;
+		}
+		if (skip_ == 0) {
+			skip_ = 2;
+			state_ = stateParseChunkHeader;
+		}
+	}
 	return bodyStart;
 }
 
 const char *Request::skipCRLF(const char *start, int& messageLen) {
-	while (state_ == stateSkipCRLF) {
-		if (*start == '\r')
-			messageLen--;
-		else if (*start == '\n') {
-			messageLen--;
-			state_ = stateParseChunkHeader;
-		}
-		else 
-			setError(requestERROR, 400, "Request syntax error (CRLF)");
-			
+	for (int i = 0; i < 2; i++) {
+		messageLen--;
+		if (messageLen != 0)
+			start++;
 	}
-
 	return start;
 }
 
@@ -307,7 +314,7 @@ const char *Request::getChunkSize(const char *start, int& messageLen) {
 		buffer_.erase(buffer_.size()- 1);
 	}
 	else {
-		buffer_.append(start, messageLen);         //clear beforehand
+		buffer_.append(start, messageLen);
 		size_t foundPos = buffer_.find(CRLF);
 		if (foundPos == std::string::npos) {
 			messageLen -= messageLen;
@@ -334,98 +341,15 @@ const char *Request::getChunkSize(const char *start, int& messageLen) {
 	}
 	if (contentLen_ == 0)
 		state_ = requestOK;
-	else
+	else {
 		state_ = stateParseMessageBody;
+		skip_ = 2;
+	}
 	return start;
 }
 
-// const char *Request::getChunkStart(const char *start, const char *msgEnd) {
-// 	if (*start == '\n') {
-// 		if (start == msgEnd)
-// 			return msgEnd;
-// 		start++;
-// 	}
-// 	else {
-// 		char lineEnd[] = CRLF;
-// 		start = std::search(start, msgEnd, lineEnd, lineEnd + 1);
-// 		start = skipCRLF(start, msgEnd);
-// 	}
-// 	return start;
-// }
-
-// const char *Request::decodeChunked(const char *start, int& messageLen) {
-// 	const char *end = start + messageLen;
-// 	if (contentLen_ == 0 && state_ == stateParseChunkedBody) {
-// 		chunkHeaderBuf_.append(start, messageLen);
-// 		size_t foundPos = chunkHeaderBuf_.find(CRLF);
-// 		if (foundPos == std::string::npos) {
-// 			messageLen = 0;
-// 			if (chunkHeaderBuf_.size() > 4)
-// 				setError(requestERROR, 400, "Syntax error in chunk");
-// 			return NULL;
-// 		}
-// 		chunkHeaderBuf_.erase(foundPos);
-// 		std::stringstream hexStream(chunkHeaderBuf_);
-// 		hexStream >> std::hex >> contentLen_;
-// 		if (!hexStream || !hexStream.eof()) {
-// 			if (!hexStream.eof())
-// 				setError(requestERROR, 400, "Syntax error in chunk");
-// 			else
-// 				setError(requestParseFAIL, 500, "std::stringstream failure in body");
-// 			return NULL;
-// 		}
-// 		if (contentLen_ == 0) {
-// 			state_ = requestOK;
-// 			return start;
-// 		}
-// 		if ((start = getChunkStart(start, end)) == end) {
-// 			if 
-// 		}
-
-
-// 	}
-	
-// }
-// const char *Request::decodeChunked(const char *start, const char *msgEnd) {
-// 	if (contentLen_ == 0 && state_ == stateParseChunkedBody)
-// 	{
-// 		char lineEnd[] = CRLF;
-// 		const char* found = std::search(start, msgEnd, lineEnd, lineEnd + 1);
-// 		if (found == msgEnd) {
-// 			setError(requestERROR, 400, "Syntax error in chunk");
-// 			return msgEnd;
-// 		}
-// 		std::string lenLine(start, found);
-// 		std::istringstream iss(lenLine);
-// 		iss >> std::hex >> contentLen_;
-// 		if (!iss || !iss.eof()) {
-// 			if (!iss.eof())
-// 				setError(requestERROR, 400, "Syntax error in chunk");
-// 			else
-// 				setError(requestParseFAIL, 500, "std::stringstream failure in body");
-// 			return msgEnd;
-// 		}
-// 		start = found;
-// 		if (contentLen_ == 0) {
-// 			state_ = requestOK;
-// 			return start;
-// 		}
-// 		start = skipCRLF(start, msgEnd);
-// 	}
-// 	int a = msgEnd - start;											//
-// 	if ((start = storeBody(start, a)) == msgEnd) //
-// 		return msgEnd;
-// 	if (*start != '\r' && *(start + 1) != '\n') {
-// 		setError(requestERROR, 400, "Syntax error in chunk");
-// 		return msgEnd;
-// 	}
-// 	start = skipCRLF(start, msgEnd);
-// 	return start;
-// }
 
 void	Request::processRequest(const char* requestBuf, int messageLen) {
-	// if (messageLen == 1)
-	// 	setError(requestERROR, 400, "Request length 1 not accepted");
 	const char *msgEnd = &requestBuf[messageLen - 1];
 	const char *start = requestBuf;
 	while (messageLen > 0 && state_ != requestERROR && state_ != requestParseFAIL && state_ != requestOK) {
@@ -434,15 +358,13 @@ void	Request::processRequest(const char* requestBuf, int messageLen) {
 				break;
 			case stateParseRequestLine: parseRequestLine();
 				break;
-			case stateParseHeaders: parseHeader();
-				break;
+			// case stateParseHeaders: parseHeader();
+			// 	break;
 			case stateCheckBody: start = checkForBody(start, msgEnd, messageLen);
 				break;
 			case stateParseMessageBody: start = storeBody(start, messageLen);
 				break;
 			case stateParseChunkHeader: start = getChunkSize(start, messageLen);
-				break;
-			case stateSkipCRLF: start = skipCRLF(start, messageLen);
 				break;
 			case requestParseFAIL:
 			case requestERROR:

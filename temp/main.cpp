@@ -128,40 +128,40 @@
 
 int main(){
 
-	// const char* getRequest = "P";
-	// const char *get2 = "OST http://www.example.com/path/to/resource?query#fragment ";
-	// const char *get3 = "H";
-	// const char *get4 = "TTP/1.1\r\nhost:localhost\r\nkey key: that and that"
- 	// "hallo ballo    \r\n00FALLOyallo: u  \r\nContent-Length: 12  \r";
-	// const char *get5 = "\n\r\n123456789112";
+	const char* getRequest = "P";
+	const char *get2 = "OST http://www.example.com/path/to/resource?query#fragment ";
+	const char *get3 = "H";
+	const char *get4 = "TTP/1.1\r\nhost:localhost\r\nkey key: that and that"
+ 	"hallo ballo    \r\n00FALLOyallo: u  \r\nContent-Length: 12  \r";
+	const char *get5 = "\n\r\n123456789112";
 	
-	// const char *g1 = "POST http://www.example.com/path/to/resource?query#fragment HTTP/1.1";
-	// const char *g2 = "\r\nhost:localhost\r\nkey key: that and that";
-	// const char *g3 = "hallo ballo    \r\n00FALLOyallo: u  \r\nContent-Length: 18  \r\n";
-	// const char *g4 = "\r\n";
-	// const char *g7 = "this is body";
-	// const char *g5 = "\nt";
-	// const char *g6 = "MORE";
+	const char *g1 = "POST http://www.example.com/path/to/resource?query#fragment HTTP/1.1";
+	const char *g2 = "\r\nhost:localhost\r\nkey key: that and that";
+	const char *g3 = "hallo ballo    \r\n00FALLOyallo: u  \r\nContent-Length: 18  \r\n";
+	const char *g4 = "\r\n";
+	const char *g7 = "this is body";
+	const char *g5 = "\nt";
+	const char *g6 = "MORE";
 
-	// Request Get;
-	// Get.processRequest(getRequest, strlen(getRequest));
-	// Get.processRequest(get2, strlen(get2));
-	// Get.processRequest(get3, strlen(get3));
-	// Get.processRequest(get4, strlen(get4));
-	// Get.processRequest(get5, strlen(get5));
-	// std::cout << Get<< std::endl;
-	// std::cout << "GET Is complete? " << Get.requestComplete() << std::endl << std::endl;
+	Request Get;
+	Get.processRequest(getRequest, strlen(getRequest));
+	Get.processRequest(get2, strlen(get2));
+	Get.processRequest(get3, strlen(get3));
+	Get.processRequest(get4, strlen(get4));
+	Get.processRequest(get5, strlen(get5));
+	std::cout << Get<< std::endl;
+	std::cout << "GET Is complete? " << Get.requestComplete() << std::endl << std::endl;
 	
-	// Request GetChunks;
-	// GetChunks.processRequest(g1, strlen(g1));
-	// GetChunks.processRequest(g2, strlen(g2));
-	// GetChunks.processRequest(g3, strlen(g3));
-	// GetChunks.processRequest(g4, strlen(g4));
-	// GetChunks.processRequest(g7, strlen(g7));
-	// GetChunks.processRequest(g5, strlen(g5));
-	// GetChunks.processRequest(g6, strlen(g6));
-	// std::cout << GetChunks;
-	// std::cout << "Is complete? " << GetChunks.requestComplete() << std::endl << std::endl;
+	Request GetChunks;
+	GetChunks.processRequest(g1, strlen(g1));
+	GetChunks.processRequest(g2, strlen(g2));
+	GetChunks.processRequest(g3, strlen(g3));
+	GetChunks.processRequest(g4, strlen(g4));
+	GetChunks.processRequest(g7, strlen(g7));
+	GetChunks.processRequest(g5, strlen(g5));
+	GetChunks.processRequest(g6, strlen(g6));
+	std::cout << GetChunks;
+	std::cout << "Is complete? " << GetChunks.requestComplete() << std::endl << std::endl;
 
 	const char* postRequest =
     "POST /example HTTP/1.1\r\n"
@@ -190,7 +190,8 @@ int main(){
     "\r\n";
   	const char* p2 = "A\r";
 	const char* p8 = "\n"
-	"Mozilla___\r\n";
+	"Mozilla___\r";
+	const char* p9 = "\n";
 	const char* p3 = "11\r\n";
 	const char* p5 = "Developer ";
 	const char* p6 = "Network";
@@ -201,6 +202,7 @@ int main(){
 	P.processRequest(p1, strlen(p1));
 	P.processRequest(p2, strlen(p2));
 	P.processRequest(p8, strlen(p8));
+	P.processRequest(p9, strlen(p9));
 	P.processRequest(p3, strlen(p3));
 	P.processRequest(p5, strlen(p5));
 	P.processRequest(p6, strlen(p6));
@@ -209,10 +211,10 @@ int main(){
 	std::cout << P;
 	std::cout << "Is complete? " << P.requestComplete() << std::endl << std::endl;
 
-	// Request Req;
-	// const char *line = "GET / HTTP/1.1\r\n\r\n";
-	// Req.processRequest(line, strlen(line));
-	// std::cout << Req;
-	// std::cout << "Is complete? " << Req.requestComplete() << std::endl << std::endl;
+	Request Req;
+	const char *line = "GET / HTTP/1.1\r\n\r\n";
+	Req.processRequest(line, strlen(line));
+	std::cout << Req;
+	std::cout << "Is complete? " << Req.requestComplete() << std::endl << std::endl;
 
 }
