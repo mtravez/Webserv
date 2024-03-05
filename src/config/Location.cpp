@@ -1,4 +1,4 @@
-#include "../../include/Location.hpp"
+#include "../../include/webserv.hpp"
 
 Location::Location(){
 	name = "";
@@ -12,7 +12,7 @@ Location::Location(const Location &location) : name(location.name),
 											   index(location.index), autoindex(location.autoindex), cgi_info(location.cgi_info),
 											   autoindexSet(location.autoindexSet){}
 
-Location &Location::operator=(const Location &location) {
+Location &Location::operator=(const Location &location){
 	if (&location != this)
 	{
 		name = location.name;
@@ -82,7 +82,7 @@ void Location::setAutoIndex(std::string autoindex) {
 	this->autoindexSet = true;
 }
 
-void Location::setCgiInfo(std::string cgiInfo) {
+void Location::setCgiInfo(std::string cgiInfo){
 	this->cgi_info.push_back(cgiInfo);
 }
 
@@ -117,8 +117,28 @@ void Location::printLocation(Location &location) {
 	std::cout << "\tAutoindex: " << location.autoindex << std::endl;
 }
 
-const std::string &Location::getName() {
+const std::string &Location::getName() const{
 	return this->name;
+}
+
+const std::vector<RequestMethod> &Location::getAllowedMethods() const{
+	return this->allowedMethods;
+}
+
+bool Location::isAutoIndex() const{
+	return this->autoindex;
+}
+
+std::vector <std::string> Location::getCgiInfo() const{
+	return this->cgi_info;
+}
+
+const std::vector <std::string> &Location::getIndex() const{
+	return this->index;
+}
+
+const std::string &Location::getRoot() const{
+	return this->root;
 }
 
 void Location::autoCompleteFromServer(const Server &server) {
@@ -127,7 +147,12 @@ void Location::autoCompleteFromServer(const Server &server) {
 	if (index.empty())
 		this->index = server.getIndex();
 	if (!autoindexSet)
-		this->autoindex = server.getAutoIndex();
+		this->autoindex = server.isAutoIndex();
 	if (this->cgi_info.empty())
 		this->cgi_info = server.getCgiInfo();
+    if (this->allowedMethods.empty()) {
+        this->allowedMethods.push_back(GET);
+        this->allowedMethods.push_back(POST);
+        this->allowedMethods.push_back(DELETE);
+    }
 }

@@ -1,4 +1,4 @@
-#include "../../include/Config.hpp"
+#include "../../include/webserv.hpp"
 
 bool running = true;
 
@@ -134,7 +134,7 @@ void Config::parseServerLine(Server &server, std::string line) {
 		}
 		//ERROR_PAGE
 		case 4: {
-			std::vector<unsigned int> errorCodes;
+			std::vector<int> errorCodes;
 			while (ss >> word && word != keywords[i])
 				throw std::runtime_error("Config file error: invalid keyword format on error_page command.\n");
 			while (ss >> word && word[word.length() - 1] != ';')
@@ -142,7 +142,7 @@ void Config::parseServerLine(Server &server, std::string line) {
 			if (word.empty() || word[word.length() - 1] != ';')
 				throw std::runtime_error("Config file error: invalid keyword format on error_page command.\n");
 			word.erase(word.length() - 1);
-			for(std::vector<unsigned int>::iterator it = errorCodes.begin();
+			for(std::vector<int>::iterator it = errorCodes.begin();
 			it != errorCodes.end(); it++)
 				server.setErrorPage(*it, word);
 			if (ss >> word)
@@ -290,11 +290,16 @@ std::map<int, Client> Config::getClientMap() {
 void Config::closeTimeoutClients() {
 	int i = 0;
 	for (std::map<int, Client>::iterator it = clientList.begin(); it != clientList.end();) {
+        // loop through fds[].events & POLL
 		if (it->second.isTimeout()){
 			std::cout << "Client timeout\n";
 			close(it->second.getClientFd());
 			fds.erase(fds.begin() + serverList.size() + i);
-			it = clientList.erase(it);
+			std::map<int, Client>::iterator tmp = it;
+			tmp++;
+			// it = clientList.erase(it);
+			clientList.erase(it);
+			it = tmp;
 		}
 		else
 		{
@@ -331,7 +336,7 @@ void Config::runServers() {
 
 	while (running) {
 		this->closeTimeoutClients();
-		int eventNr = poll(fds.data(), fds.size(), 5000);
+		int eventNr = poll(fds.data(), fds.size(), POLL_TIMEOUT * 1000);
 		std::cout << fds.size() << " size\n";
 		if (eventNr == -1) {
 			if (!running)
@@ -349,7 +354,7 @@ void Config::runServers() {
 			if (i < serverList.size() && (fds[i].revents & POLLIN)) {
 				try {
 					std::cout << "Setting up new client\n";
-					Client newClient(&serverList[i]);
+					Client newClient(serverList[i]);
 					this->clientList.insert(std::pair<int, Client>(newClient.getClientFd(), newClient));
 					addFdToPoll(newClient.getClientFd());
 					eventNr--;
@@ -363,10 +368,10 @@ void Config::runServers() {
 
 			//HANDLING REQUESTS
 
-			else if (i >= serverList.size() &&
-					   fds[i].revents & POLLIN) { // Check if the file descriptor has data to read
+			else if (i >= serverList.size() && fds[i].revents & POLLIN) { // Check if the file descriptor has data to read
 				char buf[1024];
 				ssize_t num_read = read(current_fd, buf, sizeof(buf));
+                std::cout << "GOT " << num_read << " bytes" << std::endl;
 				if (num_read == -1) {
 					perror("Could not read from client");
 					closeClient(current_fd, i);
@@ -381,7 +386,7 @@ void Config::runServers() {
 				}
 				Client &currentClient = clientList.at(current_fd);
 				currentClient.getRequest().processRequest(buf, num_read);
-//				std::cout << currentClient.getRequest();
+                // std::cout << currentClient.getRequest();
 				if (currentClient.getRequest().requestComplete()) {
 					currentClient.confirmKeepAlive();
 					fds[i].events = POLLOUT;
@@ -397,19 +402,26 @@ void Config::runServers() {
 				std::cout << currentClient.getRequest();
 				std::vector<char> &currentResponse = currentClient.getResponse();
 
-				if (currentClient.getFinishedChunked())
+				if (currentResponse.empty() || currentClient.getFinishedChunked())
 				{
-					Response response(*currentClient.getServer(), currentClient.getRequest());
+					Response response(currentClient.getServer(), currentClient.getRequest());
 					currentClient.setResponse(response.getResponse());
 					currentResponse = currentClient.getResponse();
 				}
-				int sentSize = send(current_fd, currentResponse.data(), currentResponse.size(), 0);
+                std::cout << "------RESPONSE-------------------" << std::endl;
+                std::cout << "Response size: " << currentResponse.size() << std::endl;
+                // for (std::vector<char>::const_iterator it  = currentResponse.begin(); it != currentResponse.end(); ++it) {
+                //     std::cout << *it;
+                // }
+                std::cout << "------END RESPONSE---------------" << std::endl;
+				ssize_t sentSize = send(current_fd, currentResponse.data(), currentResponse.size(), 0);
+				std::cout << "SENT SIZE: " << sentSize << std::endl;
 				if (sentSize < 0)
 				{
-					perror("Could not write in client socket\n");
+					perror("Could not write in client socket");
 					closeClient(current_fd, i);
 					continue;
-				} else if (static_cast<unsigned long >(sentSize) < currentResponse.size())
+				} else if (sentSize < static_cast<ssize_t>(currentResponse.size()))
 				{
 					currentResponse.erase(currentResponse.begin(), currentResponse.begin() + sentSize);
 					currentClient.setChunkedUnfinished();
@@ -418,6 +430,8 @@ void Config::runServers() {
 				else {
 					currentClient.setChunkedFinished();
 				}
+                std::cout << "Response size after: " << currentResponse.size() << std::endl;
+                // std::cout << "finished? " << std::boolalpha << currentClient.getFinishedChunked() << " & keep-alive? " << std::boolalpha << currentClient.getKeepAlive() << std::endl;
 				if (!currentClient.getKeepAlive() && currentClient.getFinishedChunked()) {
 					closeClient(current_fd, i);
 					eventNr--;
@@ -450,5 +464,5 @@ void Config::runServers() {
 	for (std::vector<pollfd>::iterator it = fds.begin(); it != fds.end(); it++) {
 		close(it->fd);
 	}
-//	std::cout << clientList.size() << " client size, " << clientList.begin()->first <<"\n";
+	fds.erase(fds.begin(), fds.end());
 }

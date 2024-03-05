@@ -1,4 +1,4 @@
-#include "../../include/Request.hpp"
+#include "../../include/webserv.hpp"
 
 Request::Request(): state_(stateGetHeaderData), rlstate_(stateParseMethod), headersStream_(""), \
 					headersLen_(0), skip_(4), method_(OTHER), contentLen_(0), statusCode_(0) {
@@ -50,7 +50,7 @@ void Request::setError(ParseState type, int statusCode, const char *message) {
 	state_ = type;
 	statusCode_ = statusCode;
 	errorMsg_.assign(message);
-	clearRequest();
+//	clearRequest();
 }
 
 // Clears data in case of invalid request, state_, rlstate_, statusCode_ and errorMsg_ are not cleared
@@ -154,6 +154,8 @@ void	Request::parseMethod(std::istringstream& requestLine) {
 
 //has to be public for the CGI
 void	Request::parseURI(std::istringstream& requestLine) {
+	if (requestLine.eof())
+		return setError(requestERROR, 400, "Invalid version syntax");
 	std::string tmp;
 	requestLine >> tmp;
 	if (requestLine.fail() || tmp.empty())
@@ -188,11 +190,13 @@ void	Request::parseURI(std::istringstream& requestLine) {
 }
 
 void	Request::parseHTTPver(std::istringstream& requestLine) {
+	if (requestLine.eof())
+		return setError(requestERROR, 505, "Invalid version syntax");
 	requestLine >> httpVer_;
 	if (requestLine.fail() || httpVer_.empty())
 		return setError(requestERROR, 500, "Failure to extract HTTP version from request line");
 	if (!requestLine.eof() || httpVer_.compare(0, 5, "HTTP/") != 0)
-		return setError(requestERROR, 400, "Invalid version syntax");
+		return setError(requestERROR, 505, "Invalid version syntax");
 	std::stringstream verStr(httpVer_.substr(5));
 	int	major, minor;
 	char dot;
@@ -217,7 +221,7 @@ void Request::parseHeader() {
 	if (!headersStream_.eof() && headersStream_.get() != '\n') // for final when no crlf
 		return setError(requestERROR, 400, "Syntax error in Headers");
 	std::istringstream iss(line);
-	if (!std::getline(iss, key, ':') || std::isspace(key.back()) || !std::getline(iss, value) \
+	if (!std::getline(iss, key, ':') || std::isspace(key.at(key.size() - 1)) || !std::getline(iss, value) \
 		|| containsControlChar(key) || containsControlChar(value))
 		return setError(requestERROR, 400, "Syntax error in Headers 2");
 	trimString(key);
@@ -362,8 +366,8 @@ const RequestMethod&	Request::getMethod() const {
 	return method_;
 }
 
-const std::string&		Request::getMethodStr() const {
-	return methodStr_;
+const std::string&  Request::getMethodStr() const {
+    return methodStr_;
 }
 
 const std::string&		Request::getUri() const {

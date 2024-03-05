@@ -1,4 +1,4 @@
-#include "../../include/Server.hpp"
+#include "../../include/webserv.hpp"
 
 Server::Server() {
 	port = 0;
@@ -8,13 +8,6 @@ Server::Server() {
 	ipAddress = "";
 	clientSize = 0;
 	autoindex = true;
-    // translates SUPPORTED_CGI macro to usable map
-	//TODO move to more global so not to have it every server
-    std::vector<std::string> cgiPairs = splitString(SUPPORTED_CGI, '&');
-    for (size_t i = 0; i < cgiPairs.size(); ++i) {
-        std::vector<std::string> pair = splitString(cgiPairs[i], '=');
-        supportedCGI[pair[0]] = pair[1];
-    }
 }
 
 Server::Server(const Server &server) : port(server.port), host(server.host),
@@ -48,8 +41,8 @@ Server::~Server() {
 }
 
 void Server::setPort(unsigned short port) {
-	if (!port)
-		throw std::runtime_error("Config file error: port cannot be initialized to 0.\n");
+//	if (!port)
+//		throw std::runtime_error("Config file error: port cannot be initialized to 0.\n");
 	if (this->port)
 		throw std::runtime_error("Config file error: server's port was initialized twice.\n");
 	this->port = port;
@@ -102,7 +95,7 @@ void Server::setClientSize(unsigned long clientSize) {
 	this->clientSize = clientSize;
 }
 
-void Server::setErrorPage(unsigned int key, std::string errorPage) {
+void Server::setErrorPage(int key, std::string errorPage) {
 	if (key > 511 || key < 400)
 		throw std::runtime_error("Config file error: error codes from 400 to 511.\n");
 	this->errorPages.insert(std::make_pair(key, errorPage));
@@ -140,11 +133,23 @@ std::string Server::getRoot() const {
     return (this->root);
 }
 
+std::string Server::getServerName() const {
+    return (this->serverName.back());
+}
+
+unsigned short Server::getPort() const {
+    return (this->port);
+}
+
+const std::string &Server::getIpAddr() const{
+    return (this->ipAddress);
+}
+
 std::vector<std::string> Server::getIndex() const{
     return (this->index);
 }
 
-bool Server::getAutoIndex() const {
+bool Server::isAutoIndex() const {
 	return this->autoindex;
 }
 
@@ -152,33 +157,23 @@ std::vector <std::string> Server::getCgiInfo() const {
 	return this->cgi_info;
 }
 
-std::string Server::getServerName() const {
-    return (this->serverName.back());
+int Server::getSocketFd() const {
+	return this->socketFd;
 }
 
-std::string Server::getCGIInterpreter(const std::string &extension) {
-    CGIList::iterator it = supportedCGI.find(extension);
-    if (it != supportedCGI.end()) {
-        return (it->second);
-    } else {
-        return ("");
+Location Server::getLocation(const std::string &path) const {
+    std::string dir = path.substr(0, path.rfind("/"));
+    std::map<std::string, Location>::const_iterator it;
+    while (dir.empty() == false) {
+        if ((it = locations.find(dir)) != locations.end()) {
+            return (it->second);
+        }
+        dir.erase(dir.rfind("/"));
     }
-}
+    if ((it = locations.find("/")) != locations.end()) {
+        return (it->second);
+    }
 
-/**
- * This function returns the location that holds the directory given in the path.
- * It checks the location directory with the path up until the location name ends.
- * @param path the path from which to extract a location
- * @return the location, provided it exists. Otherwise, it will return a Location with
- * the same values as the server.
- */
-Location Server::getLocation(std::string &path) {
-//	std::vector<std::string> paths = splitString(path, '/');
-	for (std::map<std::string, Location>::iterator it = this->locations.begin(); it != this->locations.end(); it++)
-	{
-		if (path.compare(0, it->first.size(), it->first) == 0)
-			return it->second;
-	}
 	Location location;
 	location.autoCompleteFromServer(*this);
 	return location;
@@ -190,6 +185,10 @@ void Server::autoCompleteLocations() {
 	}
 }
 
-int Server::getSocketFd() const {
-	return this->socketFd;
+std::string Server::getErrorPage(int status) const {
+    std::map<int, std::string>::const_iterator it = errorPages.find(status);
+    if (it == errorPages.end()) {
+        return ("");
+    }
+    return (it->second);
 }

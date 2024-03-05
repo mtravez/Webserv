@@ -1,7 +1,6 @@
 #pragma once
 
 #include "utils.hpp"
-#define MAX_HEADER_SIZE 8175 //8kb
 
 enum ParseState {
 	stateGetHeaderData,
@@ -76,6 +75,7 @@ public:
 
 	const RequestMethod& getMethod() const;
 	const std::string&	getMethodStr() const;
+
 	const std::string&	getUri() const;
 	const std::string& 	getHttpVer() const;
 	const std::string&	getPath() const;

@@ -4,32 +4,67 @@
 /*                                  INCLUDES                                  */
 /* ************************************************************************** */
 
+#include <string>
+#include <vector>
+#include <map>
 #include <iterator>
 #include <algorithm>
-#include <cstdint>
-#include <cstdio>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <map>
-#include <cctype>
 #include <iostream>
-#include <string>
+#include <sstream>
+#include <fstream>
+#include <exception>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+#include <ctime>
+// #include <cstdint>
+#include <cmath> //
+#include <iomanip> //
+#include <sys/wait.h> //
+#include <cctype>
+#include <csignal>
+#include <fcntl.h>
+#include <unistd.h>
+#include <poll.h>
+#include <dirent.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <exception>
-#include <vector>
-#include <cstring>
-#include <cstdlib>
-#include <sstream>
-#include <unistd.h>
-#include <fstream>
-#include <poll.h>
-#include <csignal>
-//#include "Server.hpp"
+
+/* ************************************************************************** */
+/*                                  DEFINES                                   */
+/* ************************************************************************** */
+
+#define BUFFER_SIZE 30720
+#define MAX_HEADER_SIZE 8175 //8kb
+#define KEEPALIVE_TIMEOUT 60.0 //sec
+#define POLL_TIMEOUT 10.0 //sec
+#define DEFAULT_CONFIG "./conf_files/default.conf"
+#define SERVER_VERSION "webserv/1.0"
+#define HTTP_VERSION "HTTP/1.1"
+#define CGI_VERSION "CGI/1.1"
+#define SUPPORTED_CGI "sh,py,pl"
+#define CGI_TIMEOUT 3.0 //sec
+#define SHEBANG "#!"
+#define DATE_FORMAT "%a, %d %b %Y %T GMT"
+#define DATE_FORMAT_LEN 29
+#define REDIRECTION_LIMIT 5
+
+#define CRLF "\r\n"
+#define CRLFCRLF "\r\n\r\n"
+
+#define SSTR(x) static_cast<std::ostringstream &>(\
+        (std::ostringstream() << std::dec << x)).str()
+
+#if defined(__APPLE__)
+    #define MTIME st_mtimespec.tv_sec
+#else
+	#define MTIME st_mtime
+#endif
+
+#define DELETE_CONFIM_MESSAGE "Are you sure to delete the directory including all its contents?\n-> Use 'force' as the query string: /your/uri/?force"
 
 /* ************************************************************************** */
 /*                                   ENUMS                                    */
@@ -55,50 +90,27 @@ enum Return {
 };
 
 enum Pipe {
-    PIPEIN,
-    PIPEOUT
+    PIPE_READ,
+    PIPE_WRITE
 };
-
-/* ************************************************************************** */
-/*                                  DEFINES                                   */
-/* ************************************************************************** */
-
-#define BUFFER_SIZE 30720
-#define DEFAULT_CONFIG "conf_files/default.conf"
-
-// Define macro for CGI extensions and interpreters
-// define a pair separated by a '='
-// define as many pairs as you want separated by '&'
-// make sure the interpreter exists at the given path
-#define SUPPORTED_CGI "sh=/bin/sh&py=/usr/bin/python3&perl=/usr/bin/perl"
-typedef std::map<std::string, std::string> CGIList;
-
-#define CGI_TIMEOUT_SEC 42
-
-#define SSTR(x) static_cast<std::ostringstream &>(\
-        (std::ostringstream() << std::dec << x)).str()
-
-#define CRLF "\r\n"
-#define CRLFCRLF "\r\n\r\n"
 
 /* ************************************************************************** */
 /*                                 FUNCTIONS                                  */
 /* ************************************************************************** */
 
-// error
-WebservError ft_perror(WebservError err, const char *context);
-
-// split
-std::vector<std::string> splitString(const std::string str, char delim);
-
 // paths
-std::string combinePaths(std::string &lhs, std::string &rhs);
+std::string combinePaths(const std::string &lhs, const std::string &rhs);
 
 // vector
-void appendStringToVector(std::vector<char> &vector, const char *str);
+void appendStringToVector(std::vector<char> &vector, std::string str);
 Return readToVector(int fd, std::vector<char> &vec);
 
 // string
 void strToLower(std::string& str);
 std::string& trimString(std::string& str);
 bool containsControlChar(std::string& str);
+std::vector<char>::iterator findSubstring(std::vector<char>::iterator begin, std::vector<char>::iterator end, std::string s);
+std::vector<std::string> splitString(const std::string& input, const std::string delim);
+
+// free
+void free_2d_array(void **array);
