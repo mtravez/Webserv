@@ -13,7 +13,6 @@ Request::Request(const Request& rhs): state_(rhs.state_), rhstate_(rhs.rhstate_)
 								headers_(rhs.headers_), body_(rhs.body_), contentLen_(rhs.contentLen_), \
 								statusCode_(rhs.statusCode_), errorMsg_(rhs.errorMsg_) {
 }
-
 Request& Request::operator=(const Request& rhs) {
 	if (this != &rhs) {
 		state_ = rhs.state_;
@@ -243,7 +242,6 @@ const char	*Request::checkForBody(const char *start, const char *msgEnd, int &me
 		start++;
 		messageLen--;
 	}
-	std::cout << messageLen << " MESSAGE LEN\n";
 	if (method_ == GET || method_ == DELETE) {
 		state_ = requestOK;
 		return msgEnd;
@@ -265,7 +263,6 @@ const char	*Request::checkForBody(const char *start, const char *msgEnd, int &me
 
 const char *Request::storeBody(const char *bodyStart, int& messageLen) {
 
-	std::cout << messageLen << " MESSAGE LEN " << contentLen_ << "CONTENT\n";
 	while (contentLen_ > 0 && messageLen > 0) {
 		body_.push_back(*bodyStart);
 		contentLen_--;
