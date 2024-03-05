@@ -1,30 +1,24 @@
 #include "Request.hpp"
 
-Request::Request(): state_(stateGetHeaderData), rlstate_(stateParseMethod), headersStream_(""), \
+Request::Request(): state_(stateGetHeaderData), rhstate_(stateParseMethod), \
 					headersLen_(0), skip_(4), method_(OTHER), contentLen_(0), statusCode_(0) {
 }
 
 Request::~Request() {}
 
-Request::Request(const Request& rhs): state_(rhs.state_), rlstate_(rhs.rlstate_), \
+Request::Request(const Request& rhs): state_(rhs.state_), rhstate_(rhs.rhstate_), \
 								buffer_(rhs.buffer_), headersLen_(rhs.headersLen_), skip_(rhs.skip_), \
 								methodStr_(rhs.methodStr_), method_(rhs.method_), \
 								uri_(rhs.uri_), path_(rhs.path_), httpVer_(rhs.httpVer_), \
 								headers_(rhs.headers_), body_(rhs.body_), contentLen_(rhs.contentLen_), \
 								statusCode_(rhs.statusCode_), errorMsg_(rhs.errorMsg_) {
-	if (!rhs.headersStream_.str().empty())
-		headersStream_ << rhs.headersStream_.str();
 }
 
 Request& Request::operator=(const Request& rhs) {
 	if (this != &rhs) {
 		state_ = rhs.state_;
-		rlstate_ = rhs.rlstate_;
+		rhstate_ = rhs.rhstate_;
 		buffer_ = rhs.buffer_;
-		headersStream_.str("");
-		headersStream_.clear();
-		if (!rhs.headersStream_.str().empty())
-			headersStream_ << rhs.headersStream_.str();
 		headersLen_ = rhs.headersLen_;
 		skip_ = rhs.skip_;
 		methodStr_ = rhs.methodStr_;
@@ -50,17 +44,15 @@ void Request::setError(ParseState type, int statusCode, const char *message) {
 	state_ = type;
 	statusCode_ = statusCode;
 	errorMsg_.assign(message);
-//	clearRequest();
+	clearRequest();
 }
 
-// Clears data in case of invalid request, state_, rlstate_, statusCode_ and errorMsg_ are not cleared
+// Clears data in case of invalid request, state_, rhstate_, statusCode_ and errorMsg_ are not cleared
 void Request::clearRequest() {
 	buffer_.clear();
 	buffer_ = "";
-	headersStream_.str("");
-	headersStream_.clear();
-	skip_ = 4;
 	headersLen_ = 0;
+	skip_ = 4;
 	methodStr_.clear();
 	methodStr_ = "";
 	method_ = OTHER;
@@ -79,7 +71,7 @@ void Request::clearRequest() {
 	contentLen_ = 0;
 }
 
-const char *Request::extractHeadersStream(const char *requestBuf, int &messageLen) {
+const char *Request::extractHeaders(const char *requestBuf, int &messageLen) {
 	buffer_.append(requestBuf, messageLen);
 	size_t foundPos = buffer_.find(CRLFCRLF);
 	if (foundPos == std::string::npos) {
@@ -89,13 +81,12 @@ const char *Request::extractHeadersStream(const char *requestBuf, int &messageLe
 			setError(requestERROR, 413, "Content too long");
 		return requestBuf;
 	}
-	if (headersLen_ + foundPos  > MAX_HEADER_SIZE)
+	if (headersLen_ + foundPos  > MAX_HEADER_SIZE) {
 		setError(requestERROR, 413, "Content too long");
+		return requestBuf;
+	}
 	buffer_.erase(foundPos);	
-	headersStream_ << buffer_;
-	buffer_.clear();
-	buffer_ = "";
-	state_ = stateParseRequestLine;
+	state_ = stateParseRequestHeaders;
 	int headerChunk = foundPos - headersLen_;
 	if (headerChunk < 0) {
 		skip_ += headerChunk;
@@ -109,29 +100,32 @@ const char *Request::extractHeadersStream(const char *requestBuf, int &messageLe
 /* ************************************************************************** */
 /*                                  PARSERS                                   */
 /* ************************************************************************** */
-void	Request::parseRequestLine() {
+void	Request::parseRequestHeaders() {
+	std::istringstream 	headersStream(buffer_);
+	buffer_.clear();
+	buffer_ = "";
 	std::string rl;
-	if (!std::getline(headersStream_, rl, '\r'))
+	if (!std::getline(headersStream, rl, '\r'))
 		return setError(requestERROR, 500, "Failure to extract request line");
-	if (!headersStream_.eof() && headersStream_.get() != '\n') // for final when no crlf
+	if (!headersStream.eof() && headersStream.get() != '\n')
 		return setError(requestERROR, 400, "Syntax error in request line");
 	std::istringstream requestLineStream(rl);
-	while (state_ != requestERROR && state_ != requestParseFAIL && rlstate_ != requestLineOK)  {
-		switch (rlstate_)
+	while (state_ != requestERROR && state_ != requestParseFAIL && rhstate_ != requestHeadersOK)  {
+		switch (rhstate_)
 		{
 			case stateParseMethod: parseMethod(requestLineStream);
 				break;
 			case stateParseUri: parseURI(requestLineStream);
 				break;
 			case stateParseHTTPver: parseHTTPver(requestLineStream);
-				if (rlstate_ == stateParseHeaders && headersStream_.eof() && (method_ == GET || method_ == DELETE)) {
-					rlstate_ = requestLineOK;
+				if (rhstate_ == stateParseHTTPHeaders && headersStream.eof() && (method_ == GET || method_ == DELETE)) {
+					rhstate_ = requestHeadersOK;
 					state_ = requestOK;
 				}
 				break;
-			case stateParseHeaders: parseHeader();
+			case stateParseHTTPHeaders: parseHTTPHeader(headersStream);
 				break;
-			case requestLineOK:
+			case requestHeadersOK:
 				break;
 		}
 	}
@@ -152,11 +146,10 @@ void	Request::parseMethod(std::istringstream& requestLine) {
 	}
 	if (method_ == OTHER)
 		return setError(requestERROR, 501, "Method not implemented");
-	rlstate_ = stateParseUri;
+	rhstate_ = stateParseUri;
 	return ;
 }
 
-//has to be public for the CGI
 void	Request::parseURI(std::istringstream& requestLine) {
 	if (requestLine.eof())
 		return setError(requestERROR, 400, "Invalid request line syntax");
@@ -189,7 +182,7 @@ void	Request::parseURI(std::istringstream& requestLine) {
 	else
 		return setError(requestERROR, 400, "Invalid path");
 	if (state_ != requestOK && state_ != requestERROR && state_ != requestParseFAIL)
-		rlstate_ = stateParseHTTPver;
+		rhstate_ = stateParseHTTPver;
 	return ;
 }
 
@@ -211,18 +204,18 @@ void	Request::parseHTTPver(std::istringstream& requestLine) {
 		return setError(requestERROR, 400, "Bad Request Version");
 	if (major != 1 || minor != 1)
 		return setError(requestERROR, 505, "Unsupported HTTP version");
-	rlstate_ = stateParseHeaders;
+	rhstate_ = stateParseHTTPHeaders;
 	return ;
 }
 
-void Request::parseHeader() {
-	if ((!headersStream_.eof() && (headersStream_.peek() == ' ' || headersStream_.peek() == '\t')))
+void Request::parseHTTPHeader(std::istringstream& headersStream) {
+	if ((!headersStream.eof() && (headersStream.peek() == ' ' || headersStream.peek() == '\t')))
 		return setError(requestERROR, 400, "Syntax error: obsolete line folding in headers");
 	std::string line;
 	std::string key, value;
-	if (!std::getline(headersStream_, line, '\r'))
+	if (!std::getline(headersStream, line, '\r'))
 		return setError(requestERROR, 500, "Failure to extract line from headers");
-	if (!headersStream_.eof() && headersStream_.get() != '\n') // for final when no crlf
+	if (!headersStream.eof() && headersStream.get() != '\n') // for final when no crlf
 		return setError(requestERROR, 400, "Syntax error in Headers");
 	std::istringstream iss(line);
 	if (!std::getline(iss, key, ':') || std::isspace(key.at(key.size() - 1)) || !std::getline(iss, value) \
@@ -231,16 +224,16 @@ void Request::parseHeader() {
 	trimString(key);
 	strToLower(key);
 	trimString(value);
-	if (!headersStream_)
+	if (!headersStream)
 		return setError(requestERROR, 500, "Failure extracting header data");
 	std::map<std::string, std::string>::iterator found = headers_.find(key);
 	if (found == headers_.end())
 		headers_.insert(std::make_pair(key, value));
 	else
 		found->second.append(", " + value);
-	if (headersStream_.eof()) {
+	if (headersStream.eof()) {
 		state_ = stateCheckBody;
-		rlstate_ = requestLineOK;
+		rhstate_ = requestHeadersOK;
 	}
 	return ;
 }
@@ -297,7 +290,7 @@ const char *Request::storeBody(const char *bodyStart, int& messageLen) {
 	return bodyStart;
 }
 
-const char *Request::skipCRLF(const char *start, int& messageLen) {
+const char *Request::skipFoundCRLF(const char *start, int& messageLen) {
 	for (int i = 0; i < 2; i++) {
 		messageLen--;
 		if (messageLen != 0)
@@ -326,7 +319,7 @@ const char *Request::getChunkSize(const char *start, int& messageLen) {
 		int move = foundPos - bufSizeBefore;
 		messageLen -= move;
 		start += move;
-		start = skipCRLF(start, messageLen);
+		start = skipFoundCRLF(start, messageLen);
 	}	
 	std::stringstream hexStream(buffer_);
 	buffer_.clear();
@@ -354,12 +347,10 @@ void	Request::processRequest(const char* requestBuf, int messageLen) {
 	const char *start = requestBuf;
 	while (messageLen > 0 && state_ != requestERROR && state_ != requestParseFAIL && state_ != requestOK) {
 		switch (state_) {
-			case stateGetHeaderData: start = extractHeadersStream(requestBuf, messageLen);
+			case stateGetHeaderData: start = extractHeaders(requestBuf, messageLen);
 				break;
-			case stateParseRequestLine: parseRequestLine();
+			case stateParseRequestHeaders: parseRequestHeaders();
 				break;
-			// case stateParseHeaders: parseHeader();
-			// 	break;
 			case stateCheckBody: start = checkForBody(start, msgEnd, messageLen);
 				break;
 			case stateParseMessageBody: start = storeBody(start, messageLen);
@@ -380,7 +371,7 @@ void	Request::processRequest(const char* requestBuf, int messageLen) {
 void	Request::resetRequest() {
 	clearRequest();
 	state_ = stateGetHeaderData;
-	rlstate_ = stateParseMethod;
+	rhstate_ = stateParseMethod;
 	statusCode_ = 0;
 	errorMsg_.clear();
 

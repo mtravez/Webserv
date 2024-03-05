@@ -5,7 +5,7 @@
 
 enum ParseState {
 	stateGetHeaderData,
-	stateParseRequestLine,
+	stateParseRequestHeaders,
 	stateCheckBody,
 	stateParseMessageBody,
 	stateParseChunkHeader,
@@ -14,12 +14,12 @@ enum ParseState {
 	requestOK
 };
 
-enum RequestLineState {
+enum RequestHeadersState {
 	stateParseMethod,
 	stateParseUri,
 	stateParseHTTPver,
-	stateParseHeaders,
-	requestLineOK
+	stateParseHTTPHeaders,
+	requestHeadersOK
 };
 
 // REQUEST CLASS provides functions to parse the request and save the Request data. 
@@ -27,10 +27,9 @@ class Request
 {
 private:
 	ParseState			state_;
-	RequestLineState	rlstate_;
+	RequestHeadersState	rhstate_;
 
 	std::string			buffer_;
-	std::stringstream 	headersStream_;
 	int					headersLen_;
 	size_t				skip_;
 
@@ -50,16 +49,16 @@ private:
 	int					statusCode_; //is 0 if no problem is found
 	std::string			errorMsg_;
 
-	const char *extractHeadersStream(const char *requestBuf, int& MessageLen);
-	void		parseRequestLine();
+	const char *extractHeaders(const char *requestBuf, int& MessageLen);
+	void		parseRequestHeaders();
 	void		parseMethod(std::istringstream& requestLine);
 	void		parseHTTPver(std::istringstream& requestLine);
-	void		parseHeader();
+	void		parseHTTPHeader(std::istringstream& headersStream);
 
 	const char *checkForBody(const char *bodyStart, const char *msgEnd, int& MessageLen);
 	const char *storeBody(const char *bodyStart, int& MessageLen);
 	const char *getChunkSize(const char *start, int& messageLen);
-	const char *skipCRLF(const char *start, int& messageLen);
+	const char *skipFoundCRLF(const char *start, int& messageLen);
 	
 	void 		setError(ParseState type, int errorCode, const char *message);
 	void		clearRequest();
