@@ -43,7 +43,7 @@ void Request::setError(ParseState type, int statusCode, const char *message) {
 	state_ = type;
 	statusCode_ = statusCode;
 	errorMsg_.assign(message);
-	clearRequest();
+	// clearRequest();
 }
 
 // Clears data in case of invalid request, state_, rhstate_, statusCode_ and errorMsg_ are not cleared
@@ -117,7 +117,7 @@ void	Request::parseRequestHeaders() {
 			case stateParseUri: parseURI(requestLineStream);
 				break;
 			case stateParseHTTPver: parseHTTPver(requestLineStream);
-				if (rhstate_ == stateParseHTTPHeaders && headersStream.eof() && (method_ == GET || method_ == DELETE)) {
+				if (rhstate_ == stateParseHTTPHeaders && headersStream.eof() && (method_ != POST)) {
 					rhstate_ = requestHeadersOK;
 					state_ = requestOK;
 				}
@@ -136,8 +136,8 @@ void	Request::parseMethod(std::istringstream& requestLine) {
 	requestLine >> methodStr_;
 	if (requestLine.fail() || methodStr_.empty())
 		return setError(requestParseFAIL, 500, "Failure to extract method from request line");
-	const std::string methods[3] = {"GET", "POST", "DELETE"};
-	for (int i = 0; i < 3; i++) {
+	const std::string methods[4] = {"GET", "POST", "DELETE", "HEAD"};
+	for (int i = 0; i < 4; i++) {
 		if (methods[i] == methodStr_) {
 			method_ = static_cast<RequestMethod>(i);
 			break ;
@@ -242,7 +242,7 @@ const char	*Request::checkForBody(const char *start, const char *msgEnd, int &me
 		start++;
 		messageLen--;
 	}
-	if (method_ == GET || method_ == DELETE) {
+	if (method_ != POST) {
 		state_ = requestOK;
 		return msgEnd;
 	}

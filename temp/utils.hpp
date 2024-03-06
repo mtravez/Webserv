@@ -46,6 +46,7 @@ enum RequestMethod {
 	GET,
 	POST,
 	DELETE,
+	HEAD,
     OTHER
 };
 
