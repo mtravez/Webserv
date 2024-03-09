@@ -199,7 +199,6 @@ int Response::waitForCGI(pid_t cgi) {
 
     while (waitpid(cgi, &waitStatus, WNOHANG) == 0) {
         if (std::difftime(std::time(NULL), start) >= CGI_TIMEOUT) {
-            std::cerr << "CGI TIMEOUT!!!" << std::endl;
             kill(cgi, SIGTERM);
             return (503);
         }
@@ -295,9 +294,9 @@ void Response::interpretCGIHeaders() {
         } else if (_headers.size() == 1) {
             _redirectHistory.push_back(_request.getUri());
             if (_redirectHistory.size() < REDIRECTION_LIMIT && 
-                std::find(_redirectHistory.begin(), _redirectHistory.end(), searchIt->second) != _redirectHistory.end()) {
+                std::find(_redirectHistory.begin(), _redirectHistory.end(), searchIt->second) == _redirectHistory.end()) {
                 // relative URI -> local redirect
-                std::istringstream iss(searchIt->second);
+                std::istringstream iss(" " + searchIt->second);
                 _request.parseURI(iss);
                 _headers.clear();
                 _body.clear();

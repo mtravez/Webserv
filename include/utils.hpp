@@ -36,10 +36,12 @@
 /*                                  DEFINES                                   */
 /* ************************************************************************** */
 
-#define BUFFER_SIZE 30720
+#define BUFFER_SIZE 1024
 #define MAX_HEADER_SIZE 8175 //8kb
 #define KEEPALIVE_TIMEOUT 60.0 //sec
 #define POLL_TIMEOUT 10.0 //sec
+#define DEFAULT_CLIENT_SIZE 10240
+#define DEFAULT_CLIENT_BODY_SIZE 102400 //100Kb
 #define DEFAULT_CONFIG "./conf_files/default.conf"
 #define SERVER_VERSION "webserv/1.0"
 #define HTTP_VERSION "HTTP/1.1"
@@ -50,6 +52,10 @@
 #define DATE_FORMAT "%a, %d %b %Y %T GMT"
 #define DATE_FORMAT_LEN 29
 #define REDIRECTION_LIMIT 5
+#ifndef ULIMIT_N
+# define ULIMIT_N 10240
+#endif
+#define FD_LIMIT (size_t)(ULIMIT_N - 32)
 
 #define CRLF "\r\n"
 #define CRLFCRLF "\r\n\r\n"
@@ -63,7 +69,7 @@
 	#define MTIME st_mtime
 #endif
 
-#define DELETE_CONFIM_MESSAGE "Are you sure to delete the directory including all its contents?\n-> Use 'force' as the query string: /your/uri/?force"
+#define DELETE_CONFIM_MESSAGE "Are you sure you want to delete the directory including all its contents?\n-> Then send the same request again with 'force' as the query string: /your/uri/?force"
 
 /* ************************************************************************** */
 /*                                   ENUMS                                    */

@@ -12,4 +12,6 @@
 !conf_files/**
 !.gitignore
 !webserv.conf
+!YoupiBanane
+!YoupiBanane/**
 .DS_Store

@@ -31,12 +31,8 @@ Location::~Location() {}
 void Location::setName(std::string name) {
 	if (!this->name.empty())
 		throw std::runtime_error("Configuration file error: declared name twice.\n");
-//	struct stat sb;
 
-//	if (stat(root.c_str(), &sb) == 0)
-		this->name = name;
-//	else
-//		throw std::runtime_error("Config file location error: location directory does not exist.\n");
+    this->name = name;
 }
 
 void Location::setRoot(std::string root) {
@@ -50,12 +46,7 @@ void Location::setRoot(std::string root) {
 }
 
 void Location::setIndex(std::string index) {
-//	struct stat sb;
-//
-//	if (stat(index.c_str(), &sb) == 0)
-		this->index.push_back(index);
-//	else
-//		throw std::runtime_error("Config file error: index directory does not exist.\n");
+    this->index.push_back(index);
 }
 
 void Location::setMethod(std::string method) {
@@ -92,7 +83,7 @@ void Location::changeAutoIndex(bool ai) {
 
 void printListTab(std::string index)
 {
-	std::cout << "\t\t" << index << std::endl;
+	std::clog << "\t\t" << index << std::endl;
 }
 void printListMethods(RequestMethod meth)
 {
@@ -103,18 +94,18 @@ void printListMethods(RequestMethod meth)
 		method = "POST";
 	else
 		method = "DELETE";
-	std::cout << "\t\t" << method << std::endl;
+	std::clog << "\t\t" << method << std::endl;
 }
 
 void Location::printLocation(Location &location) {
-	std::cout << "Location: " << location.name <<
+	std::clog << "Location: " << location.name <<
 			  "\n\tRoot: " << location.root << "\n\tIndex:\n";
 	std::for_each(location.index.begin(), location.index.end(), printListTab);
-	std::cout << "\tCGI Info:\n";
+	std::clog << "\tCGI Info:\n";
 	std::for_each(location.cgi_info.begin(), location.cgi_info.end(), printListTab);
-	std::cout << "\tAllowed:\n";
+	std::clog << "\tAllowed:\n";
 	std::for_each(location.allowedMethods.begin(), location.allowedMethods.end(), printListMethods);
-	std::cout << "\tAutoindex: " << location.autoindex << std::endl;
+	std::clog << "\tAutoindex: " << location.autoindex << std::endl;
 }
 
 const std::string &Location::getName() const{

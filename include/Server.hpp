@@ -8,7 +8,7 @@ class Server
 {
 private:
 
-    std::string                 		configPath;
+	std::string                 		configPath;
 	unsigned short						port;
 	in_addr								host;
 	std::vector<std::string>			serverName;
@@ -16,6 +16,7 @@ private:
 	std::vector<std::string>			index;
 	std::string							ipAddress;
 	unsigned long						clientSize;
+	unsigned long						clientBody;
 
 	std::map<int, std::string>          errorPages;
 	std::map<std::string, Location> 	locations;
@@ -26,6 +27,8 @@ private:
 	sockaddr_in							socketAddress;
 	int 								newSocket;
 	unsigned int						socketLen;
+
+	unsigned long						connectedClients;
 
 //	std::map<int, Client>				clients;
 //	long 								incomingMsg;
@@ -39,8 +42,9 @@ public:
 
 	void startServer();
 	void closeServer();
-	void startListen();
-	void acceptConnection(int &newSocket);
+	// void startListen();
+	bool acceptConnection();
+	void removeClient();
 
 	void setPort(unsigned short port);
 	void setHost(std::string host);
@@ -49,6 +53,8 @@ public:
 	void setIndex(std::string index);
 	void setIP();
 	void setClientSize(unsigned long clientSize);
+	void setClientBody(unsigned long clientBody);
+	void setDefaultClientSize();
 	void setErrorPage(int key, std::string errorPage);
 	void setLocation(std::string line, std::ifstream &stream);
 	void setAutoIndex(std::string autoindex);
@@ -57,16 +63,17 @@ public:
 
 	static void printServer(Server &server);
 
-    static const char			*getStatusMessage(int status);
-    std::string					getRoot() const;
-    std::string					getServerName() const;
+	static const char			*getStatusMessage(int status);
+	std::string					getRoot() const;
+	std::string					getServerName() const;
 	std::vector<std::string>	getIndex() const;
 	bool						isAutoIndex() const;
 	Location					getLocation(const std::string &path) const;
 	std::vector<std::string>	getCgiInfo() const;
-    unsigned short				getPort() const;
-    const std::string			&getIpAddr() const;
-    std::string                 getErrorPage(int status) const;
+	unsigned short				getPort() const;
+	unsigned long				getClientBodySize() const;
+	const std::string			&getIpAddr() const;
+	std::string                 getErrorPage(int status) const;
 	int							getSocketFd() const;
 	void				        autoCompleteLocations();
 
